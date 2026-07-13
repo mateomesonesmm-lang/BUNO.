@@ -50,7 +50,7 @@ class _Counter:
 
 def test_clap_burst_triggers_exactly_one_event():
     counter = _Counter()
-    detector = _make_detector(counter, decay_check_blocks=2, decay_ratio=0.6)
+    detector = _make_detector(counter, decay_check_blocks=2, decay_ratio=0.6, require_double_clap=False)
     _seed_calibrated(detector)
 
     rng = np.random.default_rng(42)
@@ -68,7 +68,7 @@ def test_clap_burst_triggers_exactly_one_event():
 
 def test_low_freq_thump_does_not_trigger():
     counter = _Counter()
-    detector = _make_detector(counter)
+    detector = _make_detector(counter, require_double_clap=False)
     _seed_calibrated(detector)
 
     blocks = [_silence(), _low_freq_thump(), _silence()]
@@ -81,7 +81,7 @@ def test_low_freq_thump_does_not_trigger():
 
 def test_sustained_loud_noise_does_not_trigger():
     counter = _Counter()
-    detector = _make_detector(counter, decay_check_blocks=2, decay_ratio=0.6)
+    detector = _make_detector(counter, decay_check_blocks=2, decay_ratio=0.6, require_double_clap=False)
     _seed_calibrated(detector)
 
     rng = np.random.default_rng(7)
@@ -98,7 +98,12 @@ def test_sustained_loud_noise_does_not_trigger():
 def test_two_claps_within_cooldown_count_once():
     counter = _Counter()
     detector = _make_detector(
-        counter, decay_check_blocks=2, decay_ratio=0.6, cooldown_seconds=5.0, post_trigger_mute_seconds=5.0
+        counter,
+        decay_check_blocks=2,
+        decay_ratio=0.6,
+        cooldown_seconds=5.0,
+        post_trigger_mute_seconds=5.0,
+        require_double_clap=False,
     )
     _seed_calibrated(detector)
 
@@ -114,6 +119,75 @@ def test_two_claps_within_cooldown_count_once():
     assert results.count(True) == 1
     detector._executor.shutdown(wait=True)
     assert counter.calls == 1
+
+
+def test_lone_clap_does_not_trigger_when_double_clap_required():
+    # Config por defecto: require_double_clap=True. Un solo golpe, por más
+    # que pase los otros gates, no debe disparar la acción.
+    counter = _Counter()
+    detector = _make_detector(counter, decay_check_blocks=2, decay_ratio=0.6)
+    _seed_calibrated(detector)
+
+    rng = np.random.default_rng(11)
+    blocks = [_silence(rng=rng) for _ in range(3)]
+    blocks.append(_clap_burst(rng=rng))
+    blocks += [_silence(rng=rng) for _ in range(10)]
+
+    results = _feed(detector, blocks)
+
+    assert True not in results
+    detector._executor.shutdown(wait=True)
+    assert counter.calls == 0
+
+
+def test_two_claps_within_window_trigger_once():
+    counter = _Counter()
+    detector = _make_detector(
+        counter,
+        decay_check_blocks=2,
+        decay_ratio=0.6,
+        double_clap_min_gap_seconds=0.0,
+        double_clap_max_gap_seconds=2.0,
+    )
+    _seed_calibrated(detector)
+
+    rng = np.random.default_rng(12)
+    blocks = [_silence(rng=rng) for _ in range(2)]
+    blocks.append(_clap_burst(rng=rng))
+    blocks += [_silence(rng=rng) for _ in range(3)]
+    blocks.append(_clap_burst(rng=rng))
+    blocks.append(_silence(rng=rng))
+
+    results = _feed(detector, blocks)
+
+    assert results.count(True) == 1
+    detector._executor.shutdown(wait=True)
+    assert counter.calls == 1
+
+
+def test_two_claps_too_close_together_do_not_trigger():
+    counter = _Counter()
+    detector = _make_detector(
+        counter,
+        decay_check_blocks=2,
+        decay_ratio=0.6,
+        double_clap_min_gap_seconds=5.0,
+        double_clap_max_gap_seconds=10.0,
+    )
+    _seed_calibrated(detector)
+
+    rng = np.random.default_rng(13)
+    blocks = [_silence(rng=rng)]
+    blocks.append(_clap_burst(rng=rng))
+    blocks.append(_silence(rng=rng))
+    blocks.append(_clap_burst(rng=rng))
+    blocks.append(_silence(rng=rng))
+
+    results = _feed(detector, blocks)
+
+    assert True not in results
+    detector._executor.shutdown(wait=True)
+    assert counter.calls == 0
 
 
 def test_calibrate_sets_reasonable_noise_floor(monkeypatch):

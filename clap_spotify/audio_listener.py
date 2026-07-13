@@ -22,8 +22,10 @@ class _Candidate:
 
 
 class ClapDetector:
-    """Detecta aplausos en un stream de audio con 4 gates: amplitud, ataque
-    súbito, contenido espectral en agudos y decaimiento del transitorio."""
+    """Detecta aplausos en un stream de audio con 4 gates (amplitud, ataque
+    súbito, contenido espectral en agudos y decaimiento del transitorio) y,
+    si `require_double_clap` está activo, exige un segundo golpe similar
+    dentro de una ventana de tiempo antes de disparar la acción."""
 
     def __init__(self, config: ClapDetectorConfig, on_clap: Callable[[], None]):
         self._config = config
@@ -34,10 +36,12 @@ class ClapDetector:
         self._recent_rms: deque[float] = deque(maxlen=config.recent_rms_window)
         self._candidate: _Candidate | None = None
         self._mute_blocks_left = 0
+        self._block_index = 0
+        self._pending_clap_block: int | None = None
 
-        block_duration = config.block_size / config.sample_rate
+        self._block_duration = config.block_size / config.sample_rate
         mute_seconds = max(config.cooldown_seconds, config.post_trigger_mute_seconds)
-        self._mute_blocks_after_trigger = max(1, round(mute_seconds / block_duration))
+        self._mute_blocks_after_trigger = max(1, round(mute_seconds / self._block_duration))
 
     @staticmethod
     def list_devices() -> str:
@@ -73,11 +77,36 @@ class ClapDetector:
         self._recent_rms.extend(samples[-cfg.recent_rms_window :])
         return floor
 
+    def _confirm_clap(self, rms: float) -> None:
+        self._mute_blocks_left = self._mute_blocks_after_trigger
+        self._recent_rms.clear()
+        self._pending_clap_block = None
+        logger.info("Aplauso confirmado (RMS pico=%.5f)", rms)
+        self._executor.submit(self._on_clap)
+
+    def _handle_decayed_transient(self, rms: float) -> bool:
+        cfg = self._config
+        if not cfg.require_double_clap:
+            self._confirm_clap(rms)
+            return True
+
+        if self._pending_clap_block is not None:
+            gap_seconds = (self._block_index - self._pending_clap_block) * self._block_duration
+            if cfg.double_clap_min_gap_seconds <= gap_seconds <= cfg.double_clap_max_gap_seconds:
+                self._confirm_clap(rms)
+                return True
+            logger.debug("Segundo golpe fuera de la ventana de doble aplauso (%.3fs)", gap_seconds)
+
+        self._pending_clap_block = self._block_index
+        self._recent_rms.clear()
+        return False
+
     def process_block(self, block: np.ndarray) -> bool:
         """Alimenta un bloque mono de audio al detector. Retorna True el bloque
         en el que se confirma un aplauso (dispara on_clap en un hilo aparte)."""
         cfg = self._config
         rms = self._rms(block)
+        self._block_index += 1
 
         if self._mute_blocks_left > 0:
             self._mute_blocks_left -= 1
@@ -88,11 +117,7 @@ class ClapDetector:
             decayed = rms < cfg.decay_ratio * self._candidate.peak_rms
             if decayed:
                 self._candidate = None
-                self._mute_blocks_left = self._mute_blocks_after_trigger
-                self._recent_rms.clear()
-                logger.info("Aplauso confirmado (RMS pico=%.5f)", rms)
-                self._executor.submit(self._on_clap)
-                return True
+                return self._handle_decayed_transient(rms)
             if self._candidate.blocks_waited >= cfg.decay_check_blocks:
                 logger.debug("Candidato descartado: no decayó (ruido sostenido)")
                 self._candidate = None

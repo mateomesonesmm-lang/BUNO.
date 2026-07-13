@@ -19,6 +19,17 @@ abre (o enfoca) Spotify y reproduce "Should I Stay or Should I Go" de The Clash.
   4. **Decaimiento**: un aplauso es un sonido corto que decae rápido. Si el
      sonido fuerte se sostiene varios bloques (TV, voz alta, música), se
      descarta.
+  5. **Doble aplauso** (activado por defecto): incluso pasando los 4 filtros
+     anteriores, no dispara la acción hasta detectar un **segundo** golpe
+     similar dentro de una ventana corta de tiempo (por defecto entre 0.15s
+     y 0.7s después del primero) — igual que los clásicos aparatos "clap
+     on/clap off". Esto es clave en ambientes con ruido de fondo variable
+     (un local, la calle, gente hablando): ahí, subir o bajar el umbral de
+     volumen no alcanza, porque un ruido cualquiera puede parecer un
+     aplauso puntual, pero es muy poco probable que se repita dos veces con
+     el timing exacto de un aplauso doble. Se puede desactivar con
+     `CLAP_REQUIRE_DOUBLE_CLAP=false` si estás en un ambiente silencioso y
+     preferís reaccionar con un solo aplauso.
 - **Acción** (`clap_spotify/spotify_controller.py` + `os_utils.py`): abre o
   enfoca la app de Spotify y lanza el URI `spotify:track:<id>` de la canción,
   lo que hace que el cliente de escritorio la reproduzca inmediatamente. Este
@@ -78,8 +89,10 @@ python -m clap_spotify.main
 ```
 
 Al iniciar, calibra el ruido ambiente durante unos segundos (quedate en
-silencio) y después queda escuchando. Aplaudí una vez y Spotify debería
-abrirse/enfocarse y empezar a reproducir la canción.
+silencio) y después queda escuchando. Dale **dos aplausos seguidos** (como
+"clap-clap") y Spotify debería abrirse/enfocarse y empezar a reproducir la
+canción. (Esto es porque `CLAP_REQUIRE_DOUBLE_CLAP` viene activado por
+defecto — ver la sección "Cómo funciona" más arriba.)
 
 ### Opciones útiles
 
@@ -114,9 +127,17 @@ relevantes si algo no anda bien:
 
 - **No detecta aplausos reales** → bajá `CLAP_AMPLITUDE_MULTIPLIER` o
   `CLAP_MIN_HIGH_FREQ_RATIO`, o subí `CLAP_ATTACK_RATIO` un poco menos
-  estricto (bajalo).
-- **Detecta ruidos que no son aplausos** → subí `CLAP_AMPLITUDE_MULTIPLIER`,
-  `CLAP_MIN_HIGH_FREQ_RATIO` o `CLAP_ATTACK_RATIO`.
+  estricto (bajalo). También asegurate de estar dando dos aplausos con un
+  ritmo natural (ni pegados ni muy separados) — la ventana por defecto es
+  entre 0.15s y 0.7s; si te resulta incómoda, ajustá
+  `CLAP_DOUBLE_CLAP_MIN_GAP_SECONDS`/`CLAP_DOUBLE_CLAP_MAX_GAP_SECONDS`.
+- **Detecta ruidos que no son aplausos** (esto es lo más común en lugares
+  con ruido de fondo, como un local) → **lo más efectivo es dejar
+  `CLAP_REQUIRE_DOUBLE_CLAP=true`** (viene así por defecto): subir o bajar
+  `CLAP_AMPLITUDE_MULTIPLIER` casi no ayuda en ambientes ruidosos, porque
+  ese filtro compara contra el volumen *reciente*, no contra un volumen
+  absoluto. Si aun con el doble aplauso activado sigue habiendo falsos
+  positivos, subí también `CLAP_MIN_HIGH_FREQ_RATIO` o `CLAP_ATTACK_RATIO`.
 - **Se dispara dos veces con un solo aplauso** (por el eco del propio
   parlante) → subí `CLAP_POST_TRIGGER_MUTE_SECONDS`.
 

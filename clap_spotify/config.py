@@ -29,6 +29,9 @@ class ClapDetectorConfig:
     cooldown_seconds: float = 1.5
     post_trigger_mute_seconds: float = 5.0
     noise_floor_ema_alpha: float = 0.05
+    require_double_clap: bool = True
+    double_clap_min_gap_seconds: float = 0.15
+    double_clap_max_gap_seconds: float = 0.7
     device: int | str | None = None
 
     def __post_init__(self) -> None:
@@ -66,6 +69,11 @@ def _int_env(name: str, default: int) -> int:
     return int(value) if value else default
 
 
+def _bool_env(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    return value.strip().lower() in ("1", "true", "yes", "on") if value else default
+
+
 def load_config() -> AppConfig:
     load_dotenv()
 
@@ -79,6 +87,9 @@ def load_config() -> AppConfig:
         cooldown_seconds=_float_env("CLAP_COOLDOWN_SECONDS", 1.5),
         post_trigger_mute_seconds=_float_env("CLAP_POST_TRIGGER_MUTE_SECONDS", 5.0),
         calibration_seconds=_float_env("CLAP_CALIBRATION_SECONDS", 2.0),
+        require_double_clap=_bool_env("CLAP_REQUIRE_DOUBLE_CLAP", True),
+        double_clap_min_gap_seconds=_float_env("CLAP_DOUBLE_CLAP_MIN_GAP_SECONDS", 0.15),
+        double_clap_max_gap_seconds=_float_env("CLAP_DOUBLE_CLAP_MAX_GAP_SECONDS", 0.7),
     )
 
     spotify = SpotifyConfig(
