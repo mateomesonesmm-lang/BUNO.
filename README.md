@@ -134,6 +134,30 @@ Si no hay ninguna voz en español instalada, el asistente va a hablar con la
 voz por defecto (probablemente en inglés) — sigue funcionando, solo que con
 peor pronunciación del texto en español.
 
+Por defecto el programa elige automáticamente una voz en español sin
+importar si es masculina o femenina. Si querés elegir una voz específica
+(por ejemplo, una masculina si tenés una instalada), corré
+`--list-voices`, copiá el ID de la que te guste (la parte después de la
+flecha `->`) y pegalo en tu `.env`:
+```
+ASSISTANT_VOICE_ID=el_id_que_copiaste
+```
+
+### Ajustar el volumen de la voz vs. la música
+
+Si la voz se escucha muy baja comparada con la música, tenés dos perillas
+en tu `.env` para ajustar esto (podés combinarlas):
+- `ASSISTANT_SPEECH_VOLUME` (0.0 a 1.0): volumen de la voz en sí. Subilo a
+  `1.0` (el máximo) si no está ya así.
+- `ASSISTANT_DUCK_VOLUME_PERCENT` (0 a 100): a qué volumen baja Spotify
+  mientras habla. Viene en `15` por defecto; bajalo a algo como `5` para
+  que la música quede bien de fondo mientras se escucha el saludo.
+
+Después de cambiar cualquiera de las dos, probá de nuevo con:
+```
+python -m clap_spotify.main --simulate-clap --force-greeting
+```
+
 ### Probar el saludo sin esperar al día siguiente
 
 El saludo completo (con clima y tareas) solo suena la primera vez que

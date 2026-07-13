@@ -73,6 +73,8 @@ class AssistantConfig:
     duck_volume_percent: float = 15.0
     greeting_title: str | None = None
     speech_rate: int = 175
+    speech_volume: float = 1.0
+    voice_id: str | None = None
 
 
 @dataclass
@@ -134,6 +136,8 @@ def load_config() -> AppConfig:
         duck_volume_percent=_float_env("ASSISTANT_DUCK_VOLUME_PERCENT", 15.0),
         greeting_title=os.getenv("ASSISTANT_GREETING_TITLE") or None,
         speech_rate=_int_env("ASSISTANT_SPEECH_RATE", 175),
+        speech_volume=_float_env("ASSISTANT_SPEECH_VOLUME", 1.0),
+        voice_id=os.getenv("ASSISTANT_VOICE_ID") or None,
     )
 
     return AppConfig(clap=clap, spotify=spotify, assistant=assistant)

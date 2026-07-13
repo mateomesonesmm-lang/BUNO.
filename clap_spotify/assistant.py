@@ -195,8 +195,9 @@ class HomeAssistant:
         try:
             engine = pyttsx3.init()
             engine.setProperty("rate", self._config.speech_rate)
+            engine.setProperty("volume", self._config.speech_volume)
 
-            voice_id = self._pick_spanish_voice_id(engine.getProperty("voices"))
+            voice_id = self._config.voice_id or self._pick_spanish_voice_id(engine.getProperty("voices"))
             if voice_id:
                 engine.setProperty("voice", voice_id)
             else:
