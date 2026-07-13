@@ -102,12 +102,10 @@ class HomeAssistant:
             logger.debug("No se pudo guardar el estado del asistente", exc_info=True)
 
     def _build_greeting(self) -> str:
-        parts = []
+        cfg = self._config
+        title_suffix = f", {cfg.greeting_title}" if cfg.greeting_title else ""
 
-        greeting = "Bienvenido a casa"
-        if self._config.greeting_title:
-            greeting += f", {self._config.greeting_title}"
-        parts.append(greeting + ".")
+        parts = [f"Bienvenido a casa{title_suffix}."]
 
         now = datetime.now()
         day_name = _DAY_NAMES_ES[now.weekday()]
@@ -121,6 +119,8 @@ class HomeAssistant:
         tasks_sentence = self._get_tasks_sentence()
         if tasks_sentence:
             parts.append(tasks_sentence)
+
+        parts.append(f"Que tengas un día excelente{title_suffix}.")
 
         return " ".join(parts)
 
@@ -149,7 +149,7 @@ class HomeAssistant:
             logger.debug("No se pudo obtener el clima", exc_info=True)
             return None
 
-        sentence = f"Afuera hay {temp:.0f} grados con {description}."
+        sentence = f"El clima es de una temperatura de {temp:.0f} grados, con {description}."
         if temp < cfg.cold_temperature_threshold_c:
             sentence += " Está fresco, abrigate."
         return sentence
@@ -166,8 +166,8 @@ class HomeAssistant:
 
         tasks = tasks[: self._config.max_tasks_to_read]
         if len(tasks) == 1:
-            return f"Tenés una tarea pendiente: {tasks[0]}."
-        return "Tenés estas tareas pendientes: " + "; ".join(tasks) + "."
+            return f"Tenés una tarea pendiente en el documento: {tasks[0]}."
+        return "Tenés estas tareas pendientes en el documento: " + "; ".join(tasks) + "."
 
     def _pick_spanish_voice_id(self, voices) -> str | None:
         for voice in voices:
