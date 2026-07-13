@@ -199,6 +199,7 @@ python -m clap_spotify.main --list-voices          # ver voces de texto-a-voz in
 python -m clap_spotify.main --simulate-clap         # dispara la acción una vez, sin usar el micrófono
 python -m clap_spotify.main --simulate-clap --dry-run  # igual, pero solo loggea qué haría (no abre nada)
 python -m clap_spotify.main --simulate-clap --force-greeting  # prueba el saludo completo (hora/clima/tareas)
+python -m clap_spotify.main --exit-after-clap       # se cierra solo apenas reacciona a un aplauso
 ```
 
 ## Correr en segundo plano al iniciar Windows
@@ -217,6 +218,18 @@ Con el entorno virtual creado, usá el Programador de Tareas de Windows:
 (macOS: se puede usar un `launchd` `.plist` con `ProgramArguments` apuntando
 al mismo comando. Linux: un servicio `systemd --user` con `ExecStart`
 apuntando al mismo comando.)
+
+### Que se cierre solo después del primer aplauso
+
+Por defecto el programa queda escuchando todo el día, para poder aplaudir
+las veces que quieras y que siempre te abra la música. Si en cambio
+preferís que sea un "una sola vez": aplaudís al llegar, te saluda y pone la
+canción, y ahí el programa se cierra solo (dejando de escuchar el
+micrófono hasta la próxima vez que inicies sesión), agregá `--exit-after-clap`
+a los argumentos de la tarea programada:
+```
+-m clap_spotify.main --exit-after-clap
+```
 
 ## Ajustar sensibilidad (falsos positivos / negativos)
 

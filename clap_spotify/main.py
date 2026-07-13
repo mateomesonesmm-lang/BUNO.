@@ -38,6 +38,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fuerza el saludo del asistente (hora/clima/tareas) aunque ya haya saludado hoy. Útil con --simulate-clap.",
     )
+    parser.add_argument(
+        "--exit-after-clap",
+        action="store_true",
+        help="Cierra el programa apenas reacciona a un aplauso, en vez de seguir escuchando todo el día.",
+    )
     parser.add_argument("--device", type=str, default=None, help="Índice o nombre del micrófono a usar.")
     parser.add_argument("--calibration-seconds", type=float, default=None)
     parser.add_argument(
@@ -81,7 +86,7 @@ def main() -> None:
 
     detector = ClapDetector(config.clap, on_clap=lambda: assistant.handle_clap())
     try:
-        detector.run_forever()
+        detector.run_forever(exit_after_first_clap=args.exit_after_clap)
     except KeyboardInterrupt:
         print("\nDeteniendo el detector de aplausos.")
 

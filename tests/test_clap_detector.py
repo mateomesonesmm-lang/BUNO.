@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import sounddevice as sd
 
 from clap_spotify.audio_listener import ClapDetector
 from clap_spotify.config import ClapDetectorConfig
@@ -208,3 +209,40 @@ def test_calibrate_sets_reasonable_noise_floor(monkeypatch):
     assert floor > 0
     assert floor < 0.05
     detector._executor.shutdown(wait=True)
+
+
+def test_run_forever_exits_after_first_clap_when_configured(monkeypatch):
+    counter = _Counter()
+    detector = _make_detector(
+        counter,
+        decay_check_blocks=2,
+        decay_ratio=0.6,
+        require_double_clap=False,
+        calibration_seconds=0.02,
+    )
+    _seed_calibrated(detector)
+
+    rng = np.random.default_rng(21)
+    live_blocks = [_silence(rng=rng), _clap_burst(rng=rng), _silence(rng=rng), _silence(rng=rng)]
+
+    class FakeStream:
+        def __init__(self, *args, callback=None, **kwargs):
+            self._callback = callback
+
+        def __enter__(self):
+            if self._callback:
+                for block in live_blocks:
+                    self._callback(block.reshape(-1, 1), len(block), None, None)
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def read(self, block_size):
+            return _silence(block_size, rng=rng).reshape(-1, 1), False
+
+    monkeypatch.setattr(sd, "InputStream", FakeStream)
+
+    detector.run_forever(exit_after_first_clap=True)
+
+    assert counter.calls == 1

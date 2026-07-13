@@ -139,7 +139,7 @@ class ClapDetector:
         ) * self._noise_floor + cfg.noise_floor_ema_alpha * min(rms, threshold)
         return False
 
-    def run_forever(self) -> None:
+    def run_forever(self, exit_after_first_clap: bool = False) -> None:
         cfg = self._config
         audio_queue: "queue.Queue[np.ndarray]" = queue.Queue()
 
@@ -169,4 +169,8 @@ class ClapDetector:
         ):
             while True:
                 block = audio_queue.get()
-                self.process_block(block)
+                triggered = self.process_block(block)
+                if triggered and exit_after_first_clap:
+                    logger.info("Aplauso procesado, cerrando el programa (--exit-after-clap activo)...")
+                    self._executor.shutdown(wait=True)
+                    return
