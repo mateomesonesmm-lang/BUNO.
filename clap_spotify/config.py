@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -10,6 +11,13 @@ from dotenv import load_dotenv
 # reemplázalo vía SPOTIFY_TRACK_URI en tu .env (ver README).
 DEFAULT_TRACK_URI = "spotify:track:02DZxszCWyn3UivsWTblnq"
 DEFAULT_TRACK_QUERY = "The Clash Should I Stay or Should I Go"
+
+
+def _default_state_dir() -> Path:
+    appdata = os.getenv("APPDATA")
+    if appdata:
+        return Path(appdata) / "ClapSpotify"
+    return Path.home() / ".clap_spotify"
 
 
 @dataclass
@@ -54,9 +62,24 @@ class SpotifyConfig:
 
 
 @dataclass
+class AssistantConfig:
+    enabled: bool = True
+    city: str | None = None
+    weather_api_key: str | None = None
+    cold_temperature_threshold_c: float = 12.0
+    tasks_file: str = field(default_factory=lambda: str(_default_state_dir() / "tasks.txt"))
+    state_file: str = field(default_factory=lambda: str(_default_state_dir() / "assistant_state.json"))
+    max_tasks_to_read: int = 5
+    duck_volume_percent: float = 15.0
+    greeting_title: str | None = None
+    speech_rate: int = 175
+
+
+@dataclass
 class AppConfig:
     clap: ClapDetectorConfig = field(default_factory=ClapDetectorConfig)
     spotify: SpotifyConfig = field(default_factory=SpotifyConfig)
+    assistant: AssistantConfig = field(default_factory=AssistantConfig)
 
 
 def _float_env(name: str, default: float) -> float:
@@ -99,4 +122,18 @@ def load_config() -> AppConfig:
         client_secret=os.getenv("SPOTIFY_CLIENT_SECRET") or None,
     )
 
-    return AppConfig(clap=clap, spotify=spotify)
+    default_assistant = AssistantConfig()
+    assistant = AssistantConfig(
+        enabled=_bool_env("ASSISTANT_ENABLED", True),
+        city=os.getenv("WEATHER_CITY") or None,
+        weather_api_key=os.getenv("WEATHER_API_KEY") or None,
+        cold_temperature_threshold_c=_float_env("ASSISTANT_COLD_THRESHOLD_C", 12.0),
+        tasks_file=os.getenv("TASKS_FILE") or default_assistant.tasks_file,
+        state_file=os.getenv("ASSISTANT_STATE_FILE") or default_assistant.state_file,
+        max_tasks_to_read=_int_env("ASSISTANT_MAX_TASKS", 5),
+        duck_volume_percent=_float_env("ASSISTANT_DUCK_VOLUME_PERCENT", 15.0),
+        greeting_title=os.getenv("ASSISTANT_GREETING_TITLE") or None,
+        speech_rate=_int_env("ASSISTANT_SPEECH_RATE", 175),
+    )
+
+    return AppConfig(clap=clap, spotify=spotify, assistant=assistant)

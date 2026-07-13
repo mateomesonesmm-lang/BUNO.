@@ -35,6 +35,13 @@ abre (o enfoca) Spotify y reproduce "Should I Stay or Should I Go" de The Clash.
   lo que hace que el cliente de escritorio la reproduzca inmediatamente. Este
   mecanismo funciona con cuentas gratis o Premium y no requiere iniciar
   sesión con la API de Spotify.
+- **Asistente de voz** (`clap_spotify/assistant.py`): la PRIMERA vez que
+  aplaudís en el día, además de la música, una voz te saluda por encima de
+  la canción (que se baja de volumen mientras habla y vuelve a subir al
+  terminar) diciéndote la hora, el día, el clima y tus tareas pendientes.
+  Los aplausos siguientes ese mismo día solo controlan la música, sin
+  repetir el saludo. Ver la sección **"Asistente de voz"** más abajo para
+  configurarlo.
 
 ## Instalación
 
@@ -76,6 +83,71 @@ completar `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` en `.env` — esto solo
 se usa para *buscar* la canción, nunca para reproducirla (eso siempre pasa
 por el cliente de escritorio).
 
+## Asistente de voz (saludo del primer aplauso del día)
+
+Esto es opcional — si no configurás nada, el asistente igual va a saludarte
+con la hora y el día (usando la voz por defecto de Windows), solo que sin
+clima ni tareas. Para tener todo completo:
+
+### 1. Clima (opcional)
+
+1. Creá una cuenta gratis en [OpenWeatherMap](https://home.openweathermap.org/users/sign_up)
+   (no pide tarjeta).
+2. Una vez adentro, andá a la sección **"API keys"** y copiá la clave que te dan.
+3. En tu `.env`, completá:
+   ```
+   WEATHER_CITY=Buenos Aires,AR
+   WEATHER_API_KEY=la_clave_que_copiaste
+   ```
+4. **Importante**: las claves nuevas pueden tardar hasta 2 horas en
+   activarse. Si al principio no dice el clima, no es un error tuyo — esperá
+   un rato y probá de nuevo con `--simulate-clap --force-greeting` (ver más
+   abajo).
+
+### 2. Tareas pendientes (opcional)
+
+El asistente lee en voz alta lo que tengas anotado en un archivo de texto.
+Por defecto vive fuera de la carpeta del proyecto (para que no se pierda
+si volvés a descargar el ZIP), en:
+```
+%APPDATA%\ClapSpotify\tasks.txt
+```
+Para crearlo/editarlo, con el proyecto activado (`venv\Scripts\activate`),
+corré en PowerShell:
+```
+New-Item -ItemType Directory -Force "$env:APPDATA\ClapSpotify" | Out-Null
+notepad "$env:APPDATA\ClapSpotify\tasks.txt"
+```
+Escribí una tarea por línea, guardá y cerrá. El asistente lee como máximo
+`ASSISTANT_MAX_TASKS` (5 por defecto) para no hacer un discurso eterno.
+
+### 3. Voz en español (recomendado)
+
+Windows solo trae por defecto las voces del idioma con el que instalaste el
+sistema. Si tu Windows está en español seguramente ya tenés una voz en
+español instalada; si no, andá a **Configuración → Hora e idioma → Voz →
+Agregar voces** y agregá "Español". Para ver qué voces tenés disponibles:
+```
+python -m clap_spotify.main --list-voices
+```
+Si no hay ninguna voz en español instalada, el asistente va a hablar con la
+voz por defecto (probablemente en inglés) — sigue funcionando, solo que con
+peor pronunciación del texto en español.
+
+### Probar el saludo sin esperar al día siguiente
+
+El saludo completo (con clima y tareas) solo suena la primera vez que
+aplaudís en el día. Para probarlo las veces que quieras mientras ajustás la
+configuración:
+```
+python -m clap_spotify.main --simulate-clap --force-greeting
+```
+
+### Desactivarlo
+
+Si no lo querés, poné `ASSISTANT_ENABLED=false` en tu `.env` — los aplausos
+van a seguir controlando la música normalmente, sin ningún saludo.
+
 ## Uso
 
 Permisos de micrófono (Windows): **Configuración → Privacidad y seguridad →
@@ -99,8 +171,10 @@ defecto — ver la sección "Cómo funciona" más arriba.)
 ```bash
 python -m clap_spotify.main --list-devices        # ver micrófonos disponibles
 python -m clap_spotify.main --device 2             # usar un micrófono específico
+python -m clap_spotify.main --list-voices          # ver voces de texto-a-voz instaladas
 python -m clap_spotify.main --simulate-clap         # dispara la acción una vez, sin usar el micrófono
 python -m clap_spotify.main --simulate-clap --dry-run  # igual, pero solo loggea qué haría (no abre nada)
+python -m clap_spotify.main --simulate-clap --force-greeting  # prueba el saludo completo (hora/clima/tareas)
 ```
 
 ## Correr en segundo plano al iniciar Windows
@@ -140,6 +214,19 @@ relevantes si algo no anda bien:
   positivos, subí también `CLAP_MIN_HIGH_FREQ_RATIO` o `CLAP_ATTACK_RATIO`.
 - **Se dispara dos veces con un solo aplauso** (por el eco del propio
   parlante) → subí `CLAP_POST_TRIGGER_MUTE_SECONDS`.
+- **El asistente no dice nada, o habla en inglés** → correté
+  `python -m clap_spotify.main --list-voices` para ver qué voces tenés
+  instaladas; si no hay ninguna en español, instalá una (ver sección
+  "Asistente de voz" más arriba). Si la lista da error, puede que falte el
+  motor de texto-a-voz de Windows (poco común, reinstalar/actualizar
+  Windows suele arreglarlo).
+- **El asistente no dice el clima** → confirmá `WEATHER_CITY` y
+  `WEATHER_API_KEY` en `.env`; si la clave es nueva, esperá hasta 2 horas a
+  que se active. Podés ver el motivo exacto corriendo con
+  `--log-level DEBUG`.
+- **No repite el saludo aunque quiero probarlo de nuevo** → es esperado,
+  solo saluda una vez por día. Usá `--simulate-clap --force-greeting` para
+  forzarlo cuantas veces quieras mientras probás.
 
 ## Desarrollo y tests
 
@@ -162,3 +249,7 @@ instalado.
   un límite del propio cliente de Spotify, no de este script).
 - El URI de canción por defecto debe confirmarse manualmente (ver sección de
   configuración) para garantizar que apunta a la versión exacta deseada.
+- Bajar el volumen de Spotify mientras habla el asistente ("ducking") solo
+  funciona en Windows y requiere `pycaw` (ya incluido en `requirements.txt`
+  para Windows). Si falla por lo que sea, el asistente igual habla, solo
+  que se puede escuchar mezclado con la música a volumen normal.

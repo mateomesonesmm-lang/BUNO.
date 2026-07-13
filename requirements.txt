@@ -2,4 +2,8 @@ numpy>=1.24
 sounddevice>=0.4.6
 python-dotenv>=1.0.0
 spotipy>=2.23.0
+requests>=2.31.0
+pyttsx3>=2.90
 pygetwindow>=0.0.9; sys_platform == "win32"
+pycaw>=20240210; sys_platform == "win32"
+comtypes>=1.2.0; sys_platform == "win32"

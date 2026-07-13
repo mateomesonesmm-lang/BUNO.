@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 
+from .assistant import HomeAssistant
 from .audio_listener import ClapDetector
 from .config import load_config
 from .spotify_controller import SpotifyController
@@ -27,6 +28,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Lista los dispositivos de audio disponibles y sale.",
     )
+    parser.add_argument(
+        "--list-voices",
+        action="store_true",
+        help="Lista las voces de texto-a-voz instaladas en el sistema y sale.",
+    )
+    parser.add_argument(
+        "--force-greeting",
+        action="store_true",
+        help="Fuerza el saludo del asistente (hora/clima/tareas) aunque ya haya saludado hoy. Útil con --simulate-clap.",
+    )
     parser.add_argument("--device", type=str, default=None, help="Índice o nombre del micrófono a usar.")
     parser.add_argument("--calibration-seconds", type=float, default=None)
     parser.add_argument(
@@ -46,6 +57,14 @@ def main() -> None:
         print(ClapDetector.list_devices())
         return
 
+    if args.list_voices:
+        try:
+            for voice_id, name in HomeAssistant.list_voices():
+                print(f"{name}  ->  {voice_id}")
+        except Exception as exc:
+            print(f"No se pudo acceder al motor de voz del sistema: {exc}")
+        return
+
     config = load_config()
     config.spotify.dry_run = args.dry_run
     if args.device is not None:
@@ -54,12 +73,13 @@ def main() -> None:
         config.clap.calibration_seconds = args.calibration_seconds
 
     controller = SpotifyController(config.spotify)
+    assistant = HomeAssistant(controller, config.assistant, dry_run=args.dry_run)
 
     if args.simulate_clap:
-        controller.trigger()
+        assistant.handle_clap(force_greeting=args.force_greeting)
         return
 
-    detector = ClapDetector(config.clap, on_clap=controller.trigger)
+    detector = ClapDetector(config.clap, on_clap=lambda: assistant.handle_clap())
     try:
         detector.run_forever()
     except KeyboardInterrupt:
