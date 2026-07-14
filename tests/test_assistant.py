@@ -106,7 +106,7 @@ def test_weather_sentence_success(tmp_path):
 
     assert "10" in sentence
     assert "cielo claro" in sentence
-    assert "abrigate" in sentence  # 10 < default cold threshold (12.0)
+    assert "abríguese" in sentence  # 10 < default cold threshold (12.0)
 
 
 def test_weather_sentence_missing_config_returns_none(tmp_path):

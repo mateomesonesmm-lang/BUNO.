@@ -153,7 +153,7 @@ class HomeAssistant:
 
         sentence = f"El clima es de una temperatura de {temp:.0f} grados, con {description}."
         if temp < cfg.cold_temperature_threshold_c:
-            sentence += " Está fresco, abrigate."
+            sentence += " Está fresco, abríguese, señor."
         return sentence
 
     def _get_tasks_sentence(self) -> str | None:
