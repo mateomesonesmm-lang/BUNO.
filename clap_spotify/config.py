@@ -75,6 +75,7 @@ class AssistantConfig:
     speech_rate: int = 175
     speech_volume: float = 1.0
     voice_id: str | None = None
+    greet_once_per_day: bool = True
 
 
 @dataclass
@@ -138,6 +139,7 @@ def load_config() -> AppConfig:
         speech_rate=_int_env("ASSISTANT_SPEECH_RATE", 175),
         speech_volume=_float_env("ASSISTANT_SPEECH_VOLUME", 1.0),
         voice_id=os.getenv("ASSISTANT_VOICE_ID") or None,
+        greet_once_per_day=_bool_env("ASSISTANT_GREET_ONCE_PER_DAY", True),
     )
 
     return AppConfig(clap=clap, spotify=spotify, assistant=assistant)

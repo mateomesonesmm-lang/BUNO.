@@ -45,6 +45,19 @@ def test_second_clap_same_day_does_not_repeat_greeting(tmp_path):
     speak.assert_called_once()
 
 
+def test_greet_every_time_when_once_per_day_disabled(tmp_path):
+    spotify, assistant = _make_assistant(tmp_path, greet_once_per_day=False)
+
+    with patch("clap_spotify.assistant.duck_spotify_volume", return_value=None), patch(
+        "clap_spotify.assistant.restore_spotify_volume"
+    ), patch.object(HomeAssistant, "_speak") as speak:
+        assistant.handle_clap()
+        assistant.handle_clap()
+
+    assert spotify.trigger.call_count == 2
+    assert speak.call_count == 2
+
+
 def test_force_greeting_ignores_state(tmp_path):
     spotify, assistant = _make_assistant(tmp_path)
 

@@ -67,9 +67,11 @@ class HomeAssistant:
             return
 
         try:
-            if force_greeting or not self._already_greeted_today():
+            already_greeted = self._config.greet_once_per_day and self._already_greeted_today()
+            if force_greeting or not already_greeted:
                 self._greet()
-                self._mark_greeted_today()
+                if self._config.greet_once_per_day:
+                    self._mark_greeted_today()
         except Exception:
             logger.warning("Falló el saludo del asistente (la música sigue igual)", exc_info=True)
 
