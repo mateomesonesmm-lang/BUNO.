@@ -82,11 +82,11 @@ class HomeAssistant:
             logger.info("[dry-run] el asistente diría: %s", text)
             return
 
-        previous_volume = duck_spotify_volume(self._config.duck_volume_percent)
+        duck_spotify_volume(self._config.duck_volume_percent)
         try:
             self._speak(text)
         finally:
-            restore_spotify_volume(previous_volume)
+            restore_spotify_volume()
 
     def _already_greeted_today(self) -> bool:
         try:

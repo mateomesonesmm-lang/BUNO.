@@ -7,10 +7,10 @@ from unittest.mock import MagicMock
 from clap_spotify import audio_mixer
 
 
-def test_duck_and_restore_without_pycaw_returns_none():
+def test_duck_and_restore_without_pycaw_do_not_raise():
     # pycaw no está instalado en este entorno (Linux) -> debe hacer fallback silencioso.
-    assert audio_mixer.duck_spotify_volume(15.0) is None
-    audio_mixer.restore_spotify_volume({1234: 1.0})  # no debe lanzar
+    assert audio_mixer.duck_spotify_volume(15.0) is False
+    audio_mixer.restore_spotify_volume()  # no debe lanzar
 
 
 def _install_fake_pycaw(monkeypatch, sessions):
@@ -39,36 +39,40 @@ def _make_fake_session(pid, name, current_volume):
     return session, volume
 
 
-def test_duck_lowers_spotify_session_volume(monkeypatch):
-    spotify_session, spotify_volume = _make_fake_session(1234, "Spotify.exe", 0.8)
+def test_duck_lowers_all_spotify_sessions(monkeypatch):
+    session_a, volume_a = _make_fake_session(1234, "Spotify.exe", 0.8)
+    session_b, volume_b = _make_fake_session(5678, "Spotify.exe", 0.8)
     other_session, other_volume = _make_fake_session(999, "chrome.exe", 0.5)
-    _install_fake_pycaw(monkeypatch, [spotify_session, other_session])
+    _install_fake_pycaw(monkeypatch, [session_a, session_b, other_session])
 
-    previous = audio_mixer.duck_spotify_volume(15.0)
+    found = audio_mixer.duck_spotify_volume(15.0)
 
-    assert previous == {1234: 0.8}
-    spotify_volume.SetMasterVolume.assert_called_once_with(0.15, None)
+    assert found is True
+    volume_a.SetMasterVolume.assert_called_once_with(0.15, None)
+    volume_b.SetMasterVolume.assert_called_once_with(0.15, None)
     other_volume.SetMasterVolume.assert_not_called()
 
 
-def test_restore_sets_back_previous_volume(monkeypatch):
-    session, volume = _make_fake_session(1234, "spotify.exe", 0.15)
-    _install_fake_pycaw(monkeypatch, [session])
+def test_restore_sets_all_spotify_sessions_to_target(monkeypatch):
+    session_a, volume_a = _make_fake_session(1234, "spotify.exe", 0.15)
+    session_b, volume_b = _make_fake_session(5678, "spotify.exe", 0.15)
+    _install_fake_pycaw(monkeypatch, [session_a, session_b])
 
-    audio_mixer.restore_spotify_volume({1234: 0.8})
+    audio_mixer.restore_spotify_volume(100.0)
 
-    volume.SetMasterVolume.assert_called_once_with(0.8, None)
+    volume_a.SetMasterVolume.assert_called_once_with(1.0, None)
+    volume_b.SetMasterVolume.assert_called_once_with(1.0, None)
 
 
-def test_duck_returns_none_when_no_spotify_session(monkeypatch):
+def test_duck_returns_false_when_no_spotify_session(monkeypatch):
     session, _ = _make_fake_session(999, "chrome.exe", 0.5)
     _install_fake_pycaw(monkeypatch, [session])
 
-    assert audio_mixer.duck_spotify_volume(15.0) is None
+    assert audio_mixer.duck_spotify_volume(15.0) is False
 
 
-def test_restore_with_none_does_not_touch_pycaw(monkeypatch):
-    calls = MagicMock()
-    monkeypatch.setitem(sys.modules, "comtypes", calls)
-    audio_mixer.restore_spotify_volume(None)
-    calls.CoInitialize.assert_not_called()
+def test_restore_without_pycaw_does_not_raise(monkeypatch):
+    monkeypatch.delitem(sys.modules, "comtypes", raising=False)
+    monkeypatch.delitem(sys.modules, "pycaw", raising=False)
+    monkeypatch.delitem(sys.modules, "pycaw.pycaw", raising=False)
+    audio_mixer.restore_spotify_volume()

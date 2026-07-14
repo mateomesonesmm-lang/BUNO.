@@ -21,7 +21,6 @@ def test_first_clap_of_day_greets_in_order(tmp_path):
     spotify, assistant = _make_assistant(tmp_path)
 
     manager = MagicMock()
-    manager.duck.return_value = {1: 0.5}
     with patch("clap_spotify.assistant.duck_spotify_volume", manager.duck), patch(
         "clap_spotify.assistant.restore_spotify_volume", manager.restore
     ), patch.object(HomeAssistant, "_speak", manager.speak):
@@ -29,7 +28,7 @@ def test_first_clap_of_day_greets_in_order(tmp_path):
 
     spotify.trigger.assert_called_once()
     assert [c[0] for c in manager.mock_calls] == ["duck", "speak", "restore"]
-    manager.restore.assert_called_once_with({1: 0.5})
+    manager.restore.assert_called_once_with()
 
 
 def test_second_clap_same_day_does_not_repeat_greeting(tmp_path):
